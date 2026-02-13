@@ -36,14 +36,21 @@ export default function ProgramasPage() {
     const [error, setError] = useState<string | null>(null);
     const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
     useEffect(() => {
-        fetchRequests();
+        fetchRequests(true);
+
+        const intervalId = setInterval(() => {
+            fetchRequests(false);
+        }, 30000);
+
+        return () => clearInterval(intervalId);
     }, []);
 
-    async function fetchRequests() {
+    async function fetchRequests(showLoading = true) {
         try {
-            setLoading(true);
+            if (showLoading) setLoading(true);
             const { data, error } = await supabase
                 .from('program_requests')
                 .select('*')
@@ -51,10 +58,11 @@ export default function ProgramasPage() {
 
             if (error) throw error;
             setRequests(data || []);
+            setLastUpdated(new Date());
         } catch (err: any) {
             setError(err.message);
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     }
 
@@ -116,7 +124,15 @@ export default function ProgramasPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-emerald-800">Solicitudes de Programas</h2>
+                <div>
+                    <h2 className="text-xl font-semibold text-white">Solicitudes de Programas</h2>
+                    {lastUpdated && (
+                        <p className="text-xs text-emerald-100/80 flex items-center gap-1 mt-1">
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Actualizado: {lastUpdated.toLocaleTimeString()}
+                        </p>
+                    )}
+                </div>
                 <span className="text-sm text-gray-500">Total: {requests.length}</span>
             </div>
 

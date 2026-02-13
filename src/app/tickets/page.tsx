@@ -39,14 +39,21 @@ export default function TicketsPage() {
     const [error, setError] = useState<string | null>(null);
     const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null); // Track which ticket is being updated
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
     useEffect(() => {
-        fetchTickets();
+        fetchTickets(true);
+
+        const intervalId = setInterval(() => {
+            fetchTickets(false);
+        }, 30000);
+
+        return () => clearInterval(intervalId);
     }, []);
 
-    async function fetchTickets() {
+    async function fetchTickets(showLoading = true) {
         try {
-            setLoading(true);
+            if (showLoading) setLoading(true);
             const { data, error } = await supabase
                 .from('tickets')
                 .select('*')
@@ -54,10 +61,11 @@ export default function TicketsPage() {
 
             if (error) throw error;
             setTickets(data || []);
+            setLastUpdated(new Date());
         } catch (err: any) {
             setError(err.message);
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     }
 
@@ -109,7 +117,15 @@ export default function TicketsPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-emerald-800">Tickets de Soporte</h2>
+                <div>
+                    <h2 className="text-xl font-semibold text-white">Tickets de Soporte</h2>
+                    {lastUpdated && (
+                        <p className="text-xs text-emerald-100/80 flex items-center gap-1 mt-1">
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Actualizado: {lastUpdated.toLocaleTimeString()}
+                        </p>
+                    )}
+                </div>
                 <span className="text-sm text-gray-500">
                     Total: {tickets.length}
                 </span>

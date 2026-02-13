@@ -31,11 +31,12 @@ export default function Dashboard() {
   const [ticketStatusData, setTicketStatusData] = useState<any[]>([]);
   const [programTypeData, setProgramTypeData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
-    async function fetchStats() {
+    async function fetchStats(showLoading = true) {
       try {
-        setLoading(true);
+        if (showLoading) setLoading(true);
         // Fetch all tickets for aggregation
         const { data: tickets, error: ticketError } = await supabase
           .from('tickets')
@@ -91,21 +92,40 @@ export default function Dashboard() {
         }));
         setProgramTypeData(programChartData);
 
+        setLastUpdated(new Date());
+
       } catch (error) {
         console.error('Error:', error);
       } finally {
-        setLoading(false);
+        if (showLoading) setLoading(false);
       }
     }
 
-    fetchStats();
+    fetchStats(true); // Initial fetch with loading
+
+    // Auto-refresh every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchStats(false); // Background fetch without loading
+    }, 30000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-600" /></div>;
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-emerald-800">Panel General</h2>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Panel General</h2>
+          {lastUpdated && (
+            <p className="text-xs text-emerald-100/80 flex items-center gap-1 mt-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Actualizado: {lastUpdated.toLocaleTimeString()}
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
