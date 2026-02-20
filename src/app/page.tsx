@@ -28,28 +28,39 @@ export default function Dashboard() {
     totalPrograms: 0,
     pendingPrograms: 0
   });
+  const [error, setError] = useState<string | null>(null);
   const [ticketStatusData, setTicketStatusData] = useState<any[]>([]);
   const [programTypeData, setProgramTypeData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
+    let abortController = new AbortController();
+    let isMounted = true;
+
     async function fetchStats(showLoading = true) {
+      // Create a fresh controller each time
+      abortController = new AbortController();
+
       try {
-        if (showLoading) setLoading(true);
+        if (showLoading && isMounted) setLoading(true);
+
         // Fetch all tickets for aggregation
         const { data: tickets, error: ticketError } = await supabase
           .from('tickets')
-          .select('*');
+          .select('*')
+          .abortSignal(abortController.signal);
 
         // Fetch all programs for aggregation
         const { data: programs, error: programError } = await supabase
           .from('program_requests')
-          .select('*');
+          .select('*')
+          .abortSignal(abortController.signal);
 
-        if (ticketError || programError) {
-          console.error('Error fetching data');
-        }
+        if (!isMounted) return; // Component unmounted, discard results
+
+        if (ticketError) throw ticketError;
+        if (programError) throw programError;
 
         const ticketsList = tickets || [];
         const programsList = programs || [];
@@ -94,10 +105,14 @@ export default function Dashboard() {
 
         setLastUpdated(new Date());
 
-      } catch (error) {
-        console.error('Error:', error);
+      } catch (error: any) {
+        // AbortError is expected when component unmounts - ignore silently
+        if (error?.name === 'AbortError' || error?.code === 'PGRST_ABORT') return;
+        if (!isMounted) return;
+        console.error('Error fetching dashboard data:', error);
+        if (isMounted) setError(error.message || 'Error de conexión');
       } finally {
-        if (showLoading) setLoading(false);
+        if (showLoading && isMounted) setLoading(false);
       }
     }
 
@@ -108,10 +123,28 @@ export default function Dashboard() {
       fetchStats(false); // Background fetch without loading
     }, 30000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+      abortController.abort();
+    };
   }, []);
 
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-600" /></div>;
+
+  if (error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4">
+        <div className="text-red-500 font-medium">Error cargando datos: {error}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

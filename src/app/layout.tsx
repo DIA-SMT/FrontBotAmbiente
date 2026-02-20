@@ -2,8 +2,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google"; // Using Inter as it's standard
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
-import { Header } from "@/components/Header";
+import { AppShell } from "@/components/AppShell";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -22,17 +21,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="h-full bg-slate-50">
+    <html lang="es" className="h-full">
       <body className={cn(inter.className, "h-full")}>
-        <div className="flex h-full">
-          <Sidebar />
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <Header />
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              {children}
-            </main>
-          </div>
-        </div>
+        <AppShell>
+          {children}
+        </AppShell>
       </body>
     </html>
   );
